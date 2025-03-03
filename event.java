@@ -14,6 +14,6 @@ public class event implements Comparable<event> {
     
   
     public int compareTo(event other) {
-        return Integer.compare(this.time, other.time); // ✅ Correct comparison for sorting
+        return Integer.compare(this.time, other.time); //  Correct comparison for sorting
     }
 }
