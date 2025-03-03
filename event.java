@@ -1,19 +1,18 @@
+import java.util.*;
 
-public class event implements Comparable<event> { 
-    int time;
-    String type; 
-    Process process; 
+public class event implements Comparable<event> {
+    int Time;
+    String Type;
+    process process;
 
-   
-    public event(int time, String type, Process process) {
-        this.time = time;
-        this.type = type;
+    public event(int Time, String Type, process process) {
+        this.Time = Time;
+        this.Type = Type;
         this.process = process;
     }
 
-    
-  
     public int compareTo(event other) {
-        return Integer.compare(this.time, other.time); //  Correct comparison for sorting
+        return this.Time - other.Time;
     }
+
 }
