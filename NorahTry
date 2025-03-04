@@ -1,0 +1,111 @@
+import java.util.*;
+
+class Process {
+    int PID, arrivalTime, burstTime, startTime, endTime, waitingTime, turnaroundTime;
+
+    public Process(int PID, int arrivalTime, int burstTime) {
+        this.PID = PID;
+        this.arrivalTime = arrivalTime;
+        this.burstTime = burstTime;
+    }
+}
+
+public class Schedulingg {
+    List<Process> processList = new ArrayList<>();
+
+    void addProcess(int PID, int arrivalTime, int burstTime) {
+        processList.add(new Process(PID, arrivalTime, burstTime));
+    }
+
+    void runSJF() {
+
+       /* System.out.println("Before Sorting:");
+        for (Process p : processList) {
+            System.out.println("P" + p.PID + " Arrival: " + p.arrivalTime + " Burst: " + p.burstTime);
+        } */
+
+        Collections.sort(processList, Comparator.comparingInt(p -> p.arrivalTime)); ///for sort
+
+        int currentTime = 0, completed = 0; //number of completed process
+        double totalTurnaroundTime = 0, totalWaitingTime = 0, totalCpuTime = 0;
+        boolean[] isCompleted = new boolean[processList.size()];
+
+        System.out.println("\nNumber of processes= " + processList.size());
+        System.out.println("Arrival times and burst times as follows:");
+        for (Process p : processList) {
+            System.out.println("P" + p.PID + ": Arrival time = " + p.arrivalTime + ", Burst time = " + p.burstTime + " ms");
+        }
+
+        System.out.println("Scheduling Algorithm: Shortest Remaining Time First");
+        System.out.println("Context Switch: 1 ms");
+        System.out.println("\nTime\tProcess/CS");
+
+        while (completed < processList.size()) {
+            int minBurst = Integer.MAX_VALUE;
+            int selectedProcess = -1;
+
+            for (int i = 0; i < processList.size(); i++) {
+                Process p = processList.get(i);
+                if (!isCompleted[i] && p.arrivalTime <= currentTime && p.burstTime < minBurst) {
+                    minBurst = p.burstTime;
+                    selectedProcess = i;
+                }
+            }
+
+            if (selectedProcess == -1) {
+                currentTime++; // CPU Idle
+            } else {
+                Process p = processList.get(selectedProcess);
+                p.startTime = currentTime;
+                p.endTime = currentTime + p.burstTime;
+                currentTime = p.endTime;
+
+                // Performance Metrics
+                p.turnaroundTime = p.endTime - p.arrivalTime;
+                p.waitingTime = p.turnaroundTime - p.burstTime;
+                totalTurnaroundTime += p.turnaroundTime;
+                totalWaitingTime += p.waitingTime;
+                totalCpuTime += p.burstTime;
+
+                System.out.println(p.startTime + "-" + p.endTime + "\tP" + p.PID);
+                isCompleted[selectedProcess] = true;
+                completed++;
+
+                if (completed < processList.size()) {
+                    System.out.println(currentTime + "-" + (currentTime + 1) + "\tCS");
+                    currentTime++; // Context Switch Time
+                }
+            }
+
+        }
+
+        int totalSimulationTime = currentTime;
+        double avgTurnaroundTime = totalTurnaroundTime / processList.size();
+        double avgWaitingTime = totalWaitingTime / processList.size();
+        double cpuUtilization = ((double) totalCpuTime / totalSimulationTime) * 100;
+
+        System.out.println("\nPerformance Metrics");
+        System.out.printf("Average Turnaround Time: %.2f ms\n", avgTurnaroundTime);
+        System.out.printf("Average Waiting Time: %.2f ms\n", avgWaitingTime);
+        System.out.printf("CPU Utilization: %.2f%%\n", cpuUtilization);
+    }
+
+    public static void main(String[] args) {
+        Scanner scan = new Scanner(System.in);
+        Schedulingg scheduler = new Schedulingg();
+
+        System.out.print("Enter the number of processes: ");
+        int nProcesses = scan.nextInt();
+
+        System.out.println("Enter Arrival Time and Burst Time for each process:");
+        for (int i = 0; i < nProcesses; i++) {
+            System.out.print("P" + (i + 1) + " Arrival Time: ");
+            int arrivalTime = scan.nextInt();
+            System.out.print("P" + (i + 1) + " Burst Time: ");
+            int burstTime = scan.nextInt();
+            scheduler.addProcess(i + 1, arrivalTime, burstTime);
+        }
+
+        scheduler.runSJF();
+    }
+}
