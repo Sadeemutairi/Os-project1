@@ -1,111 +1,150 @@
+
 import java.util.*;
 
 class Process {
-    int PID, arrivalTime, burstTime, startTime, endTime, waitingTime, turnaroundTime;
+    int PID;
+    int arrivalTime;
+    int burstTime;
+    int startTime = -1;
+    int endTime = -1;
+    int leftTime;
 
     public Process(int PID, int arrivalTime, int burstTime) {
         this.PID = PID;
         this.arrivalTime = arrivalTime;
         this.burstTime = burstTime;
+        this.leftTime = burstTime;
     }
 }
 
-public class Schedulingg {
-    List<Process> processList = new ArrayList<>();
+class Event implements Comparable<Event> {
+    int time;
+    String type; // "ARRIVAL", "EXECUTION", "CS"
+    Process process;
 
-    void addProcess(int PID, int arrivalTime, int burstTime) {
-        processList.add(new Process(PID, arrivalTime, burstTime));
+    public Event(int time, String type, Process process) {
+        this.time = time;
+        this.type = type;
+        this.process = process;
     }
 
-    void runSJF() {
+    public int compareTo(Event other) {
+        return Integer.compare(this.time, other.time); // Ensures events are processed in time order
+    }
+}
 
-       /* System.out.println("Before Sorting:");
+public class Scheduling {
+    List<Process> processList = new ArrayList<>();
+    PriorityQueue<Event> eventQueue = new PriorityQueue<>();
+    PriorityQueue<Process> readyQueue = new PriorityQueue<>(Comparator.comparingInt(p -> p.leftTime));
+    int contextSwitchTime = 1;
+    int currentTime = 0;
+    int idleTime = 0;
+
+    void runScheduler() {
+        // Initialize events with process arrivals
         for (Process p : processList) {
-            System.out.println("P" + p.PID + " Arrival: " + p.arrivalTime + " Burst: " + p.burstTime);
-        } */
-
-        Collections.sort(processList, Comparator.comparingInt(p -> p.arrivalTime)); ///for sort
-
-        int currentTime = 0, completed = 0; //number of completed process
-        double totalTurnaroundTime = 0, totalWaitingTime = 0, totalCpuTime = 0;
-        boolean[] isCompleted = new boolean[processList.size()];
-
-        System.out.println("\nNumber of processes= " + processList.size());
-        System.out.println("Arrival times and burst times as follows:");
-        for (Process p : processList) {
-            System.out.println("P" + p.PID + ": Arrival time = " + p.arrivalTime + ", Burst time = " + p.burstTime + " ms");
+            eventQueue.add(new Event(p.arrivalTime, "ARRIVAL", p));
         }
 
-        System.out.println("Scheduling Algorithm: Shortest Remaining Time First");
-        System.out.println("Context Switch: 1 ms");
-        System.out.println("\nTime\tProcess/CS");
+        int prevPID = -1;
+        int totalWaitingTime = 0;
+        int totalTurnaroundTime = 0;
+        int completed = 0;
+        List<String> scheduleLog = new ArrayList<>();
 
-        while (completed < processList.size()) {
-            int minBurst = Integer.MAX_VALUE;
-            int selectedProcess = -1;
+        while (!eventQueue.isEmpty()) {
+            Event currentEvent = eventQueue.poll();
+            currentTime = currentEvent.time;
 
-            for (int i = 0; i < processList.size(); i++) {
-                Process p = processList.get(i);
-                if (!isCompleted[i] && p.arrivalTime <= currentTime && p.burstTime < minBurst) {
-                    minBurst = p.burstTime;
-                    selectedProcess = i;
-                }
+            switch (currentEvent.type) {
+                case "ARRIVAL":
+                    readyQueue.add(currentEvent.process);
+                    if (readyQueue.size() == 1) {
+                        eventQueue.add(new Event(currentTime, "EXECUTION", currentEvent.process));
+                    }
+                    break;
+
+                case "EXECUTION":
+                    if (!readyQueue.isEmpty()) {
+                        Process currentProcess = readyQueue.poll();
+
+                        // Handle context switch
+                        if (prevPID != -1 && prevPID != currentProcess.PID) {
+                            eventQueue.add(new Event(currentTime + contextSwitchTime, "CS", null));
+                            scheduleLog.add(currentTime + "-" + (currentTime + contextSwitchTime) + " CS");
+                            currentTime += contextSwitchTime;
+                        }
+
+                        scheduleLog.add(currentTime + "-" + (currentTime + 1) + " P" + currentProcess.PID);
+                        currentProcess.leftTime--;
+                        prevPID = currentProcess.PID;
+
+                        if (currentProcess.leftTime == 0) {
+                            currentProcess.endTime = currentTime + 1;
+                            int turnaroundTime = currentProcess.endTime - currentProcess.arrivalTime;
+                            int waitingTime = turnaroundTime - currentProcess.burstTime;
+
+                            totalTurnaroundTime += turnaroundTime;
+                            totalWaitingTime += waitingTime;
+                            completed++;
+                        } else {
+                            readyQueue.add(currentProcess); // Reinsert process with updated leftTime
+                        }
+
+                        if (!readyQueue.isEmpty()) {
+                            eventQueue.add(new Event(currentTime + 1, "EXECUTION", readyQueue.peek()));
+                        }
+                    } else {
+                        idleTime++;
+                    }
+                    break;
+
+                case "CS":
+                    // Context switch is completed, resume execution
+                    if (!readyQueue.isEmpty()) {
+                        eventQueue.add(new Event(currentTime, "EXECUTION", readyQueue.peek()));
+                    }
+                    break;
             }
-
-            if (selectedProcess == -1) {
-                currentTime++; // CPU Idle
-            } else {
-                Process p = processList.get(selectedProcess);
-                p.startTime = currentTime;
-                p.endTime = currentTime + p.burstTime;
-                currentTime = p.endTime;
-
-                // Performance Metrics
-                p.turnaroundTime = p.endTime - p.arrivalTime;
-                p.waitingTime = p.turnaroundTime - p.burstTime;
-                totalTurnaroundTime += p.turnaroundTime;
-                totalWaitingTime += p.waitingTime;
-                totalCpuTime += p.burstTime;
-
-                System.out.println(p.startTime + "-" + p.endTime + "\tP" + p.PID);
-                isCompleted[selectedProcess] = true;
-                completed++;
-
-                if (completed < processList.size()) {
-                    System.out.println(currentTime + "-" + (currentTime + 1) + "\tCS");
-                    currentTime++; // Context Switch Time
-                }
-            }
-
         }
 
-        int totalSimulationTime = currentTime;
-        double avgTurnaroundTime = totalTurnaroundTime / processList.size();
-        double avgWaitingTime = totalWaitingTime / processList.size();
-        double cpuUtilization = ((double) totalCpuTime / totalSimulationTime) * 100;
+        // Print scheduling log
+        System.out.println("Time  | Process/CS");
 
-        System.out.println("\nPerformance Metrics");
-        System.out.printf("Average Turnaround Time: %.2f ms\n", avgTurnaroundTime);
-        System.out.printf("Average Waiting Time: %.2f ms\n", avgWaitingTime);
-        System.out.printf("CPU Utilization: %.2f%%\n", cpuUtilization);
+        for (String log : scheduleLog) {
+            System.out.println(log);
+        }
+
+        // Performance Metrics
+        double avgWaitingTime = (double) totalWaitingTime / processList.size();
+        double avgTurnaroundTime = (double) totalTurnaroundTime / processList.size();
+        double cpuUtilization = ((double) (currentTime - idleTime) / currentTime) * 100;
+
+        System.out.println("\nPerformance Metrics:");
+        System.out.println("Average Turnaround Time: " + avgTurnaroundTime);
+        System.out.println("Average Waiting Time: " + avgWaitingTime);
+        System.out.println("CPU Utilization: " + String.format("%.2f", cpuUtilization) + "%");
     }
 
     public static void main(String[] args) {
         Scanner scan = new Scanner(System.in);
-        Schedulingg scheduler = new Schedulingg();
+        Scheduling scheduler = new Scheduling();
 
-        System.out.print("Enter the number of processes: ");
+        System.out.println("Enter the number of processes:");
         int nProcesses = scan.nextInt();
 
-        System.out.println("Enter Arrival Time and Burst Time for each process:");
+        System.out.println("Enter Arrival and Burst time for each process:");
         for (int i = 0; i < nProcesses; i++) {
             System.out.print("P" + (i + 1) + " Arrival Time: ");
             int arrivalTime = scan.nextInt();
             System.out.print("P" + (i + 1) + " Burst Time: ");
             int burstTime = scan.nextInt();
-            scheduler.addProcess(i + 1, arrivalTime, burstTime);
+
+            scheduler.processList.add(new Process(i + 1, arrivalTime, burstTime));
         }
 
-        scheduler.runSJF();
+        scheduler.runScheduler();
+        scan.close();
     }
 }
