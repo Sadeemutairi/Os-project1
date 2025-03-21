@@ -2,108 +2,119 @@ package p1;
 
 import java.util.*;
 
-
 public class MemoryManager {
 
-	List<MemoryBlock> memoryBlocks;
+    List<MemoryBlock> memoryBlocks;
 
-	public MemoryManager(List<Integer> blockSizes) {
+    public MemoryManager(List<Integer> blockSizes) {
+        memoryBlocks = new ArrayList<>();
+        int startAddress = 0; // Starting address of the first block
 
-		memoryBlocks = new ArrayList<>();
-		int startAddress = 0; // starting address of first block
+        for (int size : blockSizes) {
+            memoryBlocks.add(new MemoryBlock(startAddress, size)); // Create memory block and add to the list
+            startAddress += size; // Update start address for the next block
+        }
+    }
 
-		for (int size : blockSizes) {
-			memoryBlocks.add( new MemoryBlock(startAddress, size) ); // create memory block and add to list of blocks
-			startAddress += size;  // start address for next block
-		}
-	}
-	
-    // allocate memory based on strategy: First-Fit, Best-Fit, Worst-Fit
-	public boolean allocateMemory(String processID, int processSize, int strategy) {
-		
-		MemoryBlock chosenBlock = null; // to store selected block
+    
+    public boolean allocateMemory(String processID, int processSize, int strategy) {
+        MemoryBlock chosenBlock = null; // Store selected block
         
-		// First-Fit : find first suitable block  (faster but may lead to fragmentation)
-		if (strategy == 1) { 
-			
-			for (MemoryBlock block : memoryBlocks) {
-				if (!block.isAllocated && block.blockSize >= processSize) { //choose available block that is large enough
-					chosenBlock = block;
-					break;
-				}
-			}
-		} 
+        if (strategy == 1) { 
+            for (MemoryBlock block : memoryBlocks) {
+                if (!block.isAllocated && block.blockSize >= processSize) {
+                    chosenBlock = block;
+                    break;
+                }
+            }
+        } else if (strategy == 2) { 
+            int minSize = Integer.MAX_VALUE;
+            for (MemoryBlock block : memoryBlocks) {
+                if (!block.isAllocated && block.blockSize >= processSize && block.blockSize < minSize) {
+                    chosenBlock = block;
+                    minSize = block.blockSize;
+                }
+            }
+        } else if (strategy == 3) { 
+            int maxSize = 0;
+            for (MemoryBlock block : memoryBlocks) {
+                if (!block.isAllocated && block.blockSize >= processSize && block.blockSize > maxSize) {
+                    chosenBlock = block;
+                    maxSize = block.blockSize;
+                }
+            }
+        }
+        
+        // If a suitable block is found, allocate it
+        if (chosenBlock != null) {
+            chosenBlock.allocate(processID, processSize);
+            System.out.println(processID + " allocated at address " + chosenBlock.startAddress 
+                    + ", and the internal fregmentation is " + chosenBlock.IF);
+            return true;
+        } else {
+            System.out.println("Error: Not enough memory for process " + processID);
+            return false;
+        }
+    }
+
+    public void deallocateMemory(String processID) {
+        for (MemoryBlock block : memoryBlocks) {
+            if (block.isAllocated && block.processID.equals(processID)) {
+                block.deallocate(); // Free memory block
+                System.out.println("Process " + processID + " deallocated.");
+                return;
+            }
+        }
+        System.out.println("Error: Process " + processID + " not found.");
+    }
+
+    public void printMemoryReport() {
+        boolean hasAllocatedBlock = false;
+
+        // Check if any block is allocated
+        for (MemoryBlock block : memoryBlocks) {
+            if (block.isAllocated) {
+                hasAllocatedBlock = true;
+                break;
+            }
+        }
 		
-		// Best-Fit : find smallest suitable block (minimizes fragmentation)
-		else if (strategy == 2) { 
-			int minSize = Integer.MAX_VALUE; //  largest possible value, any valid block will be smaller than this
-			
-			for (MemoryBlock block : memoryBlocks) {
-				if (!block.isAllocated && block.blockSize >= processSize && block.blockSize < minSize) { // choose the smallest possible suitable block
-					chosenBlock = block;
-					minSize = block.blockSize;
-				}
-			}
-		} 
-		
-		// Worst-Fit : find largest suitable block (potentially leaves larger gaps)
-		else if (strategy == 3) { 
-			int maxSize = 0; // any valid block found will be larger than this
-			
-			for (MemoryBlock block : memoryBlocks) {
-				if (!block.isAllocated && block.blockSize >= processSize && block.blockSize > maxSize) { //choose the largest possible suitable block
-					chosenBlock = block;
-					maxSize = block.blockSize;
-				}
-			}
-		}
-		
-        // if a suitable block is found
-		if (chosenBlock != null) {
-			
-			chosenBlock.allocate(processID, processSize);
-			System.out.println(processID + " Allocated at address " + chosenBlock.startAddress + ",and the internal fragmentation is " + chosenBlock.IF);
-			return true;
-			
-		} else { // allocation failed
-			System.out.println("Error: not enough memory for process " + processID);
-			return false;
+
+        if (hasAllocatedBlock) {
+            System.out.println("=====================================================================================");
+            System.out.printf("%-10s %-10s %-15s %-12s %-15s %-22s%n",
+                    "Block#", "Size", "Start-End", "Status", "ProcessID", "InternalFregmentation");
+            System.out.println("=====================================================================================");
+        } else {
+            System.out.println("===================================================");
+            System.out.printf("%-10s %-10s %-15s %-12s%n",
+                    "Block#", "Size", "Start-End", "Status");
+            System.out.println("===================================================");
+        }
+
+       // Print memory blocks
+	   for (int i = 0; i < memoryBlocks.size(); i++) {
+		MemoryBlock block = memoryBlocks.get(i);
+
+		if (hasAllocatedBlock) {
+			System.out.printf("%-10s %-10d %-15s %-12s %-15s %-22d%n",
+					"Block" + i, block.blockSize,
+					block.startAddress + "-" + block.endAddress,
+					(block.isAllocated ? "allocated" : "free"),
+					(block.isAllocated ? block.processID : "Null"),
+					(block.isAllocated ? block.IF : 0));
+		} else {
+			System.out.printf("%-10s %-10d %-15s %-12s%n",
+					"Block" + i, block.blockSize,
+					block.startAddress + "-" + block.endAddress,
+					(block.isAllocated ? "allocated" : "free"));
 		}
 	}
 
-	public void deallocateMemory(String processID) {
-		
-		for (MemoryBlock block : memoryBlocks) {
-			
-			if ( block.isAllocated && block.processID.equals(processID) ) {
-				
-				block.deallocate(); // free memory block
-				System.out.println("Process " + processID + " deallocated.");
-				return;
-			}
-		}
-		System.out.println("Error: Process " + processID + " not found.");
+	if (hasAllocatedBlock) {
+		System.out.println("=====================================================================================");
+	} else {
+		System.out.println("===================================================");
 	}
-
-	public void printMemoryReport() {
-		
-		System.out.println("==========================================================");
-		System.out.printf("%-8s %-8s %-12s %-10s %-10s %-10s%n", 
-                "Block#", "Size", "Start-End", "Status", "ProcessID", "InternalFrag");
-		System.out.println("==========================================================");
-		
-		for (int i = 0; i < memoryBlocks.size(); i++) {
-			
-			MemoryBlock block = memoryBlocks.get(i);
-			String processID = block.isAllocated ? block.processID : "Null"; // handle unallocated blocks
-			int internalFrag = block.isAllocated ? block.IF : 0; 
-			
-			System.out.printf("Block%-3d %-6d %6d-%-6d %-13s %-10s %-10d%n",
-					i, block.blockSize, block.startAddress, block.endAddress,
-					(block.isAllocated ? "allocated" : "free"), processID , internalFrag );
-		}
-		System.out.println("==========================================================");
-	}
-
-
+}
 }
