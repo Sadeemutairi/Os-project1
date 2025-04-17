@@ -44,7 +44,7 @@ public class OS2 {
             scan.nextLine();  
 
             if (choice == 1) {
-                System.out.print("Enter the the process ID and size of the process");
+                System.out.print("Enter the the process ID and size of the process: ");
                 String processID = scan.next();
                 int processSize = scan.nextInt();
                 memoryManager.allocateMemory(processID, processSize, s);
